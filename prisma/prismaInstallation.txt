@@ -1,0 +1,47 @@
+run in terminal
+$npx prisma init --datasource-provider postgresql
+
+it will create a prisma dir and schema file
+
+add models in schema file
+add
+
+model User {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  email     String   @unique
+  name      String?
+  role      Role     @default(USER)
+  posts     Post[]
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  published Boolean  @default(false)
+  title     String   @db.VarChar(255)
+  author    User?    @relation(fields: [authorId], references: [id])
+  authorId  Int?
+}
+
+push schema to DB
+$npx prisma db push
+
+Add the prisma.seed field to your package.json file:
+"prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
+or
+"prisma": {
+    "seed": "node prisma/seed.js"
+  },
+
+To seed the database, run the db seed CLI command:
+$node prisma/seed
+//if seed script is added:
+$npx prisma db seed
+
+to see the records in browser can run
+
+$npx prisma studio
