@@ -8,36 +8,33 @@ import {
 } from "remix";
 import type FormDataEntryValue from "remix";
 import { db } from "~/utils/db.server";
+import { validateFieldLength } from "~/utils/validateFields";
+import { getUserId } from "~/utils/session.server";
 
-function validateTitle(title: FormDataEntryValue | null | string) {
-  if (typeof title !== "string" || title.length < 3) {
-    return "Title should be at least 3 characters long";
-  }
-}
-
-function validateBody(body: FormDataEntryValue | null | string) {
-  if (typeof body !== "string" || body.length < 10) {
-    return "Post should be at least 10 characters long";
-  }
+function badRequest(data: any) {
+  return json(data, { status: 400 });
 }
 
 export const action: ActionFunction = async ({ request }) => {
+  const user_id = await getUserId(request);
+  if (!user_id) return;
+  const userId = parseInt(user_id); //userId in session is string, but Int in postgres
   const formData = await request.formData();
-  const title = formData.get("title");
-  const body = formData.get("body");
+  const title = formData.get("title") as string;
+  const body = formData.get("body") as string;
 
   const fields = { title, body };
 
   const fieldErrors = {
-    title: validateTitle(title),
-    body: validateBody(body),
+    title: validateFieldLength(title, "Title", 3),
+    body: validateFieldLength(body, "Post body", 10),
   };
   if (Object.values(fieldErrors).some(Boolean)) {
-    return json({ fieldErrors, fields }, { status: 400 });
+    return badRequest({ fieldErrors, fields });
   }
   //TODO: correct typings
   const post = await db.post.create({
-    data: fields as { title: string; body: string },
+    data: { ...fields, userId },
   });
 
   return redirect(`/posts/${post.id}`);

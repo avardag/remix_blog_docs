@@ -1,5 +1,15 @@
-import { Outlet, LiveReload, Link, Links, Meta, useCatch } from "remix";
+import {
+  Outlet,
+  LiveReload,
+  Link,
+  Links,
+  Meta,
+  useCatch,
+  useLoaderData,
+  LoaderFunction,
+} from "remix";
 import globalStylesUrl from "~/styles/global.css";
+import { getUser } from "./utils/session.server";
 
 //export links function from any route module , to apply styles specific to that roite
 //also include <Links /> in Document component, so styles are applied
@@ -10,6 +20,13 @@ export const meta = () => {
   const description = "A cool blog built with Remix";
   const keywords = "remix, react, javascript, blog";
   return { description, keywords };
+};
+//loader func
+export const loader: LoaderFunction = async ({ request }) => {
+  const user = await getUser(request);
+  return {
+    user,
+  };
 };
 //Default root func af my app
 export default function App() {
@@ -45,6 +62,41 @@ function Document({
 }
 
 function Layout({ children }: { children: React.ReactNode }) {
+  const { user } = useLoaderData();
+  return (
+    <>
+      <nav className="navbar">
+        <Link to="/" className="logo">
+          Remix
+        </Link>
+        <ul className="nav">
+          <li>
+            <Link to="/posts">Posts</Link>
+          </li>
+          {user ? (
+            <li>
+              <form action="/auth/logout" method="POST">
+                <button type="submit" className="btn">
+                  Logout
+                </button>
+              </form>
+            </li>
+          ) : (
+            <li>
+              <Link to="/auth/login">Login</Link>
+            </li>
+          )}
+        </ul>
+      </nav>
+      <div className="container">{children}</div>
+    </>
+  );
+}
+/*
+You cannot `useLoaderData` in an error boundary.
+TypeError: Cannot destructure property 'user' of '(0 , import_remix3.useLoaderData)(...)' as it is undefined.
+*/
+function ErrorLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <nav className="navbar">
@@ -69,10 +121,10 @@ export function ErrorBoundary({ error }: { error: Error }) {
   console.error(error);
   return (
     <Document title="Oh no!">
-      <Layout>
+      <ErrorLayout>
         {/* add the UI you want your users to see */}
         <p>{error.message}</p>
-      </Layout>
+      </ErrorLayout>
     </Document>
   );
 }
@@ -85,18 +137,21 @@ export function CatchBoundary() {
     case 404:
       message = <p>This is a custom error message for 404 pages</p>;
       break;
+    case 500:
+      message = <p>This is a custom error message for 500 pages</p>;
+      break;
     // You can customize the behavior for other status codes
     default:
       throw new Error(caught.data || caught.statusText);
   }
   return (
     <Document title={`${caught.status} ${caught.statusText}`}>
-      <Layout>
+      <ErrorLayout>
         <h1>
           {caught.status}: {caught.statusText}
         </h1>
         {message}
-      </Layout>
+      </ErrorLayout>
     </Document>
   );
 }
